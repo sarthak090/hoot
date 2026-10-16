@@ -1,0 +1,31 @@
+WEBVTT
+
+00:00:00.350 --> 00:00:02.908
+Meet Hoot, a menu-bar owl for Claude Code.
+
+00:00:03.358 --> 00:00:07.222
+Claude Code is busy in your terminal, and you've moved on to something else.
+
+00:00:07.672 --> 00:00:10.763
+When Claude needs permission, Hoot lets you know right away.
+
+00:00:11.272 --> 00:00:17.988
+Open the menu to see exactly what will run. Allow it once, always allow it, or deny it with a reason for Claude.
+
+00:00:18.438 --> 00:00:22.069
+Answer from the menu bar, and the terminal picks up where it left off.
+
+00:00:22.519 --> 00:00:26.126
+If Claude has a question, pick an answer, or type your own.
+
+00:00:27.119 --> 00:00:31.203
+Plans work the same way. Approve them, or send them back with feedback.
+
+00:00:31.719 --> 00:00:37.988
+The Usage tab shows how much of your session and weekly limits you've used, plus your tokens and an estimated cost.
+
+00:00:38.438 --> 00:00:43.066
+And your session usage sits right next to the owl, so you can check it at a glance.
+
+00:00:43.516 --> 00:00:46.449
+Hoot is free and open source. Find it on GitHub.

@@ -192,19 +192,22 @@
       <video id="demo" controls muted playsinline loop preload="metadata" poster="media/hoot-demo-poster.jpg" width="1920" height="1200"
              aria-describedby="demo-transcript">
         <source src="media/hoot-demo.mp4" type="video/mp4">
-        Your browser can't play this video. <a href="media/hoot-demo.mp4">Download the demo (MP4, 2.6 MB)</a>.
+        <track kind="captions" src="media/hoot-demo.en.vtt" srclang="en" label="English">
+        Your browser can't play this video. <a href="media/hoot-demo.mp4">Download the demo (MP4)</a>.
       </video>
       <details id="demo-transcript">
-        <summary>Demo with sample data (42 seconds, no sound). Read what it shows</summary>
+        <summary>Narrated demo with sample data, under a minute. Turn the sound on, or read what it shows</summary>
         <ol>
-          <li>Claude Code is working in a terminal while you're in another app.</li>
-          <li>Claude needs permission to run <code>git push --force-with-lease origin main</code>, so Hoot sends a notification.</li>
-          <li>Hoot's menu shows the exact command, with Deny, Always Allow and Allow Once.</li>
-          <li>After answering from the menu bar, the terminal carries on by itself.</li>
-          <li>Claude asks which database to use: pick an option, or type your own answer.</li>
-          <li>Claude has a plan: approve it, or send it back with feedback.</li>
-          <li>The Usage tab shows how much of your 5-hour session and week is used, plus tokens and an estimated cost.</li>
-          <li>The menu bar shows session usage right next to the owl.</li>
+          <li>Meet Hoot, a menu-bar owl for Claude Code.</li>
+          <li>Claude Code is busy in your terminal, and you've moved on to something else.</li>
+          <li>When Claude needs permission, Hoot lets you know right away.</li>
+          <li>Open the menu to see exactly what will run. Allow it once, always allow it, or deny it with a reason for Claude.</li>
+          <li>Answer from the menu bar, and the terminal picks up where it left off.</li>
+          <li>If Claude has a question, pick an answer, or type your own.</li>
+          <li>Plans work the same way. Approve them, or send them back with feedback.</li>
+          <li>The Usage tab shows how much of your session and weekly limits you've used, plus your tokens and an estimated cost.</li>
+          <li>And your session usage sits right next to the owl, so you can check it at a glance.</li>
+          <li>Hoot is free and open source. Find it on GitHub.</li>
         </ol>
       </details>
     </div>
