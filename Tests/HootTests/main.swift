@@ -1,0 +1,13 @@
+// Run with: swift run HootTests
+hootArtTests()
+hookProtocolTests()
+previewTests()
+transcriptMatcherTests()
+hookInstallerTests()
+hookFilesTests()
+migrationTests()
+usageTests()
+statusLineTests()
+realSettingsRoundTrip()
+realUsageReport()
+Harness.finish()

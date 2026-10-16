@@ -1,0 +1,31 @@
+name: Release
+
+# Push a tag like v0.1.0 to build Hoot.app and attach it to a *draft* release.
+# Nothing is public until you review the draft and press Publish.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tests
+        run: swift run -c release HootTests
+      - name: Build Hoot.app
+        run: ./scripts/build-app.sh
+      - name: Package
+        run: |
+          cd build
+          ditto -c -k --keepParent Hoot.app "Hoot-${GITHUB_REF_NAME}.zip"
+          shasum -a 256 "Hoot-${GITHUB_REF_NAME}.zip" > "Hoot-${GITHUB_REF_NAME}.zip.sha256"
+      - name: Draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" build/Hoot-*.zip build/Hoot-*.zip.sha256 \
+            --draft --title "Hoot $GITHUB_REF_NAME" --notes-file CHANGELOG.md

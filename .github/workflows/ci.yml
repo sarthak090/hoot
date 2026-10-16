@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: swift --version
+      - name: Tests
+        run: swift run -c release HootTests
+      - name: Check hook scripts
+        run: bash -n Resources/hooks/hoot.sh && bash -n Resources/hooks/hoot-statusline.sh
+      - name: Build Hoot.app
+        run: ./scripts/build-app.sh
