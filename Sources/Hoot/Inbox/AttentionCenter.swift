@@ -16,6 +16,8 @@ struct PendingRequest: Identifiable {
     var notified = false
     /// The user looked at the terminal since; don't keep badging for it.
     var acknowledged = false
+    /// Demo video only: an answer shown as already chosen.
+    var demoPicks: [Int: Set<Int>] = [:]
 }
 
 struct RecentNotification: Identifiable {
@@ -339,6 +341,36 @@ final class AttentionCenter {
                                       receivedAt: now, deadline: now.addingTimeInterval(300), notified: true))
         record(project: "my-app", text: "Claude wants to use Bash: git push --force-with-lease origin main", isPermission: true)
         record(project: "api-server", text: "Claude is waiting for your input")
+    }
+
+    enum DemoSample { case bash, question, plan }
+
+    /// Demo video only: one sample card of the given kind.
+    func addDemoSample(_ kind: DemoSample, answered: Bool = false) {
+        let before = pending.count
+        switch kind {
+        case .bash:
+            addPreviewSample()
+        case .question, .plan:
+            addInteractivePreviewSamples()
+            // Keep only the requested kind.
+            let keep: ToolPreview.Kind = kind == .question ? .question : .plan
+            pending = Array(pending.prefix(before)) + pending.dropFirst(before).filter { $0.preview.kind == keep }
+        }
+        if answered, kind == .question, let i = pending.indices.last { pending[i].demoPicks = [0: [0]] }
+    }
+
+    /// Demo video only.
+    func clearForDemo() {
+        pending.removeAll()
+        recent.removeAll()
+        genericAlert = false
+    }
+
+    /// Demo video only: a past entry for the Recent list.
+    func addDemoRecent(project: String, text: String, isPermission: Bool, minutesAgo: Double) {
+        recent.append(RecentNotification(date: Date().addingTimeInterval(-minutesAgo * 60), project: project, text: text,
+                                         isPermission: isPermission))
     }
 
     /// `--render-preview --sample-interactive` only: a sample question and plan.

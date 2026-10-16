@@ -32,7 +32,7 @@ struct PermissionCardView: View {
             }
             switch preview.kind {
             case .question:
-                QuestionAnswerView(request: request, armed: armed)
+                QuestionAnswerView(request: request, armed: armed, initialPicks: request.demoPicks)
             case .plan:
                 PlanReviewView(request: request, armed: armed)
             case .permission:

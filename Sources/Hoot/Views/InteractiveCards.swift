@@ -10,12 +10,19 @@ struct QuestionAnswerView: View {
     let armed: Bool
 
     /// Question index → chosen option indexes.
-    @State private var picks: [Int: Set<Int>] = [:]
+    @State private var picks: [Int: Set<Int>]
     /// Questions where "Other…" is chosen, and what was typed.
     @State private var otherChosen: Set<Int> = []
     @State private var otherText: [Int: String] = [:]
 
     private var questions: [QuestionPreview] { request.preview.questions ?? [] }
+
+    /// `initialPicks` exists for the demo video (a question with an answer already chosen).
+    init(request: PendingRequest, armed: Bool, initialPicks: [Int: Set<Int>] = [:]) {
+        self.request = request
+        self.armed = armed
+        _picks = State(initialValue: initialPicks)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

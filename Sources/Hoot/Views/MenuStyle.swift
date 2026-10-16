@@ -115,11 +115,20 @@ struct Banner: View {
 /// and only after that does the root take the new height. Window and root never disagree,
 /// so there is nothing to centre and nothing moves.
 struct FitWindowToContent: ViewModifier {
+    @Environment(\.fitsWindowToContent) private var enabled
     @State private var contentHeight: CGFloat = 0
     /// Content height the window has right now (nil until first sized).
     @State private var windowHeight: CGFloat?
 
     func body(content: Content) -> some View {
+        if enabled {
+            fitting(content)
+        } else {
+            content.fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func fitting(_ content: Content) -> some View {
         content
             .fixedSize(horizontal: false, vertical: true)
             .background(GeometryReader { proxy in
@@ -189,6 +198,19 @@ struct FitWindowToContent: ViewModifier {
 
 extension View {
     func fitWindowToContent() -> some View { modifier(FitWindowToContent()) }
+}
+
+/// Off when the menu is drawn inside something else (the demo video's desktop scene),
+/// where resizing "its" window would resize the whole scene.
+private struct FitsWindowToContentKey: EnvironmentKey {
+    static let defaultValue = true
+}
+
+extension EnvironmentValues {
+    var fitsWindowToContent: Bool {
+        get { self[FitsWindowToContentKey.self] }
+        set { self[FitsWindowToContentKey.self] = newValue }
+    }
 }
 
 /// SF Symbol for a Claude Code tool.

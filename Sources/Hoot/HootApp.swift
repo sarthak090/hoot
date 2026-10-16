@@ -28,6 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if PreviewRenderer.runIfRequested(model: model) { return }
+        if DemoRenderer.runIfRequested(model: model) { return }
         // `kill`/logout send SIGTERM: quit normally so held hooks are released and the
         // socket is removed.
         signal(SIGTERM, SIG_IGN)

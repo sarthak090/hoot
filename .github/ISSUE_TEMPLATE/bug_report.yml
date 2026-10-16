@@ -1,0 +1,58 @@
+name: Bug report
+description: Something in Hoot isn't working as expected.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. **Security problems:** please don't file them here. Use the repository's Security tab › Report a vulnerability instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start `claude --permission-mode default`
+        2. Ask it to run …
+        3. Switch to another app …
+  - type: input
+    id: hoot
+    attributes:
+      label: Hoot version
+      description: Shown in Finder › Hoot.app › Get Info, or the release you downloaded.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "15.3"
+    validations:
+      required: true
+  - type: input
+    id: claude
+    attributes:
+      label: Claude Code version
+      description: Output of `claude --version`.
+      placeholder: "2.1.301"
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where do you run Claude Code?
+      options: [Terminal app, VS Code / Cursor, Claude desktop app (Code tab), Other]
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs (optional)
+      description: |
+        Run `log stream --predicate 'subsystem == "io.github.sarthak090.hoot"' --level debug`, reproduce the problem, and paste the output. Hoot logs event types and outcomes only, but please check before pasting.
+      render: text

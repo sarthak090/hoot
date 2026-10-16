@@ -4,6 +4,11 @@
 
 > Unofficial and not affiliated with Anthropic. "Claude" and "Claude Code" are Anthropic's trademarks.
 
+**Website and install guide: [sarthak090.github.io/hoot](https://sarthak090.github.io/hoot/)**
+
+[![Watch the 42-second demo](docs/media/hoot-demo-poster.jpg)](https://sarthak090.github.io/hoot/#top)
+<sub>Click to watch the demo (sample data).</sub>
+
 | Activity | Usage |
 |---|---|
 | ![Activity tab](docs/screenshots/menu-activity-light.png) | ![Usage tab](docs/screenshots/menu-usage-light.png) |
