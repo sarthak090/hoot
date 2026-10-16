@@ -65,12 +65,16 @@ public struct TranscriptMatcher: Sendable {
 
     /// The part of the input that identifies a call. Whole input as a fallback.
     static func identifyingKey(toolName: String, input: JSONValue?) -> JSONValue? {
+        // The transcript's copy omits the plan Claude Code injects for hooks, and only one
+        // plan can be awaiting approval per session, so any ExitPlanMode call matches.
+        if toolName == "ExitPlanMode" { return .null }
         guard let input else { return nil }
         switch toolName {
         case "Bash": return input["command"]
         case "Edit", "MultiEdit", "Write", "Read": return input["file_path"]
         case "NotebookEdit": return input["notebook_path"]
         case "WebFetch": return input["url"]
+        case "AskUserQuestion": return input["questions"]
         default: return input
         }
     }

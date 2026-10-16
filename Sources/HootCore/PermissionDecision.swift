@@ -68,8 +68,19 @@ public enum PermissionOptions {
 public enum PermissionDecision: Sendable, Equatable {
     case allow(updatedPermissions: [JSONValue])
     case deny(reason: String?)
+    /// AskUserQuestion: the original `questions` array echoed back, plus answers keyed by
+    /// the original question text. Multi-select answers are joined with ", ".
+    case answer(questions: JSONValue, answers: [String: String])
+    /// ExitPlanMode: approve by echoing the tool input (the plan) back.
+    case approvePlan(toolInput: JSONValue)
+    /// ExitPlanMode: don't approve; Claude keeps planning with this feedback.
+    case planFeedback(String)
 
     public static let maxReasonLength = 1000
+
+    static func trim(_ s: String?) -> String {
+        String((s ?? "").trimmingCharacters(in: .whitespacesAndNewlines).prefix(maxReasonLength))
+    }
 
     /// The documented PermissionRequest hook output.
     public func hookOutput() -> Data {
@@ -79,10 +90,22 @@ public enum PermissionDecision: Sendable, Equatable {
             decision = ["behavior": .string("allow")]
             if !updates.isEmpty { decision["updatedPermissions"] = .array(updates) }
         case .deny(let reason):
-            let trimmed = String((reason ?? "").trimmingCharacters(in: .whitespacesAndNewlines).prefix(Self.maxReasonLength))
+            let trimmed = Self.trim(reason)
             let message = trimmed.isEmpty
                 ? "The user denied this from the Hoot menu bar app."
                 : "The user denied this from the Hoot menu bar app: \(trimmed)"
+            decision = ["behavior": .string("deny"), "message": .string(message)]
+        case .answer(let questions, let answers):
+            decision = ["behavior": .string("allow"),
+                        "updatedInput": .object(["questions": questions,
+                                                 "answers": .object(answers.mapValues { .string(Self.trim($0)) })])]
+        case .approvePlan(let input):
+            decision = ["behavior": .string("allow"), "updatedInput": input]
+        case .planFeedback(let feedback):
+            let trimmed = Self.trim(feedback)
+            let message = trimmed.isEmpty
+                ? "The user reviewed the plan in Hoot and wants changes. Ask what to change."
+                : "The user reviewed the plan in Hoot and wants changes: \(trimmed)"
             decision = ["behavior": .string("deny"), "message": .string(message)]
         }
         let output: JSONValue = .object([

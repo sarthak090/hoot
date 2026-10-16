@@ -24,33 +24,20 @@ struct PermissionCardView: View {
                     .frame(width: 28, height: 28)
                     .background(Color.accentColor.opacity(0.15), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(verbatim: preview.toolName).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                    Text(verbatim: title).font(.system(size: 13, weight: .semibold)).lineLimit(1)
                     Text(verbatim: request.project).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
                 }
                 Spacer(minLength: 6)
                 countdown
             }
-            if let purpose = preview.purpose, !purpose.isEmpty {
-                Text(verbatim: purpose).font(.system(size: 12)).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+            switch preview.kind {
+            case .question:
+                QuestionAnswerView(request: request, armed: armed)
+            case .plan:
+                PlanReviewView(request: request, armed: armed)
+            case .permission:
+                permissionBody(preview)
             }
-            if let path = preview.filePath {
-                Label { Text(verbatim: path).textSelection(.enabled).lineLimit(2).truncationMode(.middle) } icon: {
-                    Image(systemName: "doc")
-                }
-                .font(.system(size: 11, design: .monospaced))
-                .foregroundStyle(.secondary)
-            }
-            if let command = preview.command { CodeBox(text: command) }
-            if let diff = preview.diff { DiffBox(lines: diff) }
-            if let detail = preview.detail { CodeBox(text: detail) }
-            if preview.hadHiddenCharacters {
-                WarningRow(text: "Contains hidden or direction-changing characters, shown as ⟨U+…⟩. Check carefully.")
-            }
-            if preview.truncated {
-                WarningRow(text: "Preview shortened. Check the terminal to see everything.")
-            }
-            if denying { denyForm } else { buttons }
         }
         .platter()
         .task {
@@ -58,6 +45,34 @@ struct PermissionCardView: View {
             if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
             armed = true
         }
+    }
+
+    private var title: String {
+        switch request.preview.kind {
+        case .question: "Question"
+        case .plan: "Plan to Review"
+        case .permission: request.preview.toolName
+        }
+    }
+
+    @ViewBuilder
+    private func permissionBody(_ preview: ToolPreview) -> some View {
+        if let purpose = preview.purpose, !purpose.isEmpty {
+            Text(verbatim: purpose).font(.system(size: 12)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        if let path = preview.filePath {
+            Label { Text(verbatim: path).textSelection(.enabled).lineLimit(2).truncationMode(.middle) } icon: {
+                Image(systemName: "doc")
+            }
+            .font(.system(size: 11, design: .monospaced))
+            .foregroundStyle(.secondary)
+        }
+        if let command = preview.command { CodeBox(text: command) }
+        if let diff = preview.diff { DiffBox(lines: diff) }
+        if let detail = preview.detail { CodeBox(text: detail) }
+        PreviewWarnings(preview: preview)
+        if denying { denyForm } else { buttons }
     }
 
     private var countdown: some View {
@@ -78,6 +93,7 @@ struct PermissionCardView: View {
                 denying = true
                 reasonFocused = true
             }
+            .accessibilityIdentifier("hoot.permission.deny")
             Spacer(minLength: 0)
             if !request.options.isEmpty {
                 Menu("Always Allow") {
@@ -96,6 +112,7 @@ struct PermissionCardView: View {
                 model.attention.answer(request.id, with: .allow(updatedPermissions: []))
             }
             .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier("hoot.permission.allowOnce")
         }
         .controlSize(.regular)
         .disabled(!armed)
@@ -179,7 +196,7 @@ struct DiffBox: View {
     }
 }
 
-private extension View {
+extension View {
     /// The sunken text well macOS uses for code and logs.
     func codeWell() -> some View {
         background(Color(nsColor: .textBackgroundColor).opacity(0.75), in: RoundedRectangle(cornerRadius: 6, style: .continuous))

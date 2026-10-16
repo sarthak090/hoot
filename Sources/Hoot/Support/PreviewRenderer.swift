@@ -20,6 +20,7 @@ enum PreviewRenderer {
             model.usage.start()
         }
         if demo || args.contains("--with-sample") { model.attention.addPreviewSample() }
+        if args.contains("--sample-interactive") { model.attention.addInteractivePreviewSamples() }
         if demo || args.contains("--with-sample") || args.contains("--sample-limits") { model.limits.setPreviewSample() }
         Task {
             for _ in 0..<100 where model.usage.summary == nil {

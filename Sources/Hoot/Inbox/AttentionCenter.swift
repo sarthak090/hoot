@@ -7,6 +7,8 @@ struct PendingRequest: Identifiable {
     let sessionID: String?
     let project: String
     let preview: ToolPreview
+    /// Exactly as Claude Code sent it: questions and plans are answered by echoing it back.
+    let toolInput: JSONValue?
     let options: [PermissionOption]
     let receivedAt: Date
     let deadline: Date
@@ -39,6 +41,8 @@ final class AttentionCenter {
     enum Outcome {
         case decided(PermissionDecision)
         case answeredElsewhere
+        /// The user chose to answer in the terminal instead.
+        case handedBack
         case timedOut
         case clientGone
     }
@@ -107,6 +111,7 @@ final class AttentionCenter {
         pending.append(PendingRequest(
             id: id, sessionID: event.sessionID, project: SafeText.visible(event.projectName).text,
             preview: ToolPreviewBuilder.build(toolName: toolName, input: event.toolInput),
+            toolInput: event.toolInput,
             options: PermissionOptions.from(event.permissionSuggestions),
             receivedAt: now, deadline: now.addingTimeInterval(TimeInterval(timeout))))
         responders[id] = responder
@@ -170,9 +175,17 @@ final class AttentionCenter {
         finish(id, .decided(decision))
     }
 
+    /// Removes a request from Hoot without deciding, so the terminal dialog handles it.
+    func handBack(_ id: UUID) {
+        finish(id, .handedBack)
+    }
+
     private func handle(_ action: NotificationManager.Action) {
         switch action {
-        case .allow(let id): answer(id, with: .allow(updatedPermissions: []))
+        case .allow(let id):
+            // Questions and plans have no Allow action, but never let a bare allow reach them.
+            guard pending.first(where: { $0.id == id })?.preview.kind == .permission else { return }
+            answer(id, with: .allow(updatedPermissions: []))
         case .deny(let id, let reason): answer(id, with: .deny(reason: reason))
         case .open: focus.activateTerminal()
         }
@@ -213,15 +226,17 @@ final class AttentionCenter {
         let request = pending[i]
         let waited = Date().timeIntervalSince(request.receivedAt)
         Log.attention.info("notifying for request after \(waited, format: .fixed(precision: 2))s")
-        let subtitle = "Claude wants to use \(request.preview.toolName)"
+        let subtitle = Self.headline(of: request.preview)
         let body = Self.summary(of: request.preview)
+        // Allow/Deny buttons only make sense for permissions; questions and plans are answered in the menu.
+        let category = request.preview.kind == .permission ? NotificationManager.permissionCategory : NotificationManager.alertCategory
         notifications.post(id: id.uuidString, title: request.project, subtitle: subtitle, body: body,
-                           category: NotificationManager.permissionCategory, requestID: id, sound: settings.soundEnabled)
-        record(project: request.project, text: "\(subtitle): \(body)", isPermission: true)
+                           category: category, requestID: id, sound: settings.soundEnabled)
+        record(project: request.project, text: "\(subtitle): \(body.replacingOccurrences(of: "\n", with: " "))", isPermission: true)
         scheduleEscalation(key: id.uuidString) { [weak self] in
             guard let self, let r = self.pending.first(where: { $0.id == id }), !r.acknowledged else { return false }
             self.notifications.post(id: "\(id.uuidString).followup", title: r.project, subtitle: "Still waiting: \(subtitle)",
-                                    body: body, category: NotificationManager.permissionCategory, requestID: id,
+                                    body: body, category: category, requestID: id,
                                     sound: self.settings.soundEnabled)
             return true
         }
@@ -244,7 +259,29 @@ final class AttentionCenter {
         if recent.count > Self.maxRecent { recent.removeLast(recent.count - Self.maxRecent) }
     }
 
+    static func headline(of preview: ToolPreview) -> String {
+        switch preview.kind {
+        case .question: "Claude is asking you"
+        case .plan: "Claude has a plan for you to review"
+        case .permission: "Claude wants to use \(preview.toolName)"
+        }
+    }
+
     static func summary(of preview: ToolPreview) -> String {
+        if let questions = preview.questions {
+            // "Which color? (Red · Blue)"; further questions counted, not listed.
+            let first = questions[0]
+            let options = first.options.map(\.label).joined(separator: " · ")
+            let more = questions.count > 1 ? "\n+\(questions.count - 1) more question\(questions.count > 2 ? "s" : "")" : ""
+            return "\(first.question)\(options.isEmpty ? "" : " (\(options))")\(more)"
+        }
+        if let plan = preview.plan {
+            // First meaningful lines, without Markdown heading marks.
+            let lines = plan.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }.map { $0.replacingOccurrences(of: #"^#+\s*"#, with: "", options: .regularExpression) }
+            let text = lines.prefix(3).joined(separator: "\n")
+            return text.isEmpty ? "Open Hoot to review it." : (text.count > 300 ? String(text.prefix(300)) + "…" : text)
+        }
         let text = preview.command ?? preview.filePath ?? preview.detail ?? preview.purpose ?? preview.toolName
         let firstLines = text.split(separator: "\n", omittingEmptySubsequences: false).prefix(4).joined(separator: "\n")
         return firstLines.count > 300 ? String(firstLines.prefix(300)) + "…" : firstLines
@@ -254,18 +291,33 @@ final class AttentionCenter {
 
     private func finish(_ id: UUID, _ outcome: Outcome) {
         guard let index = pending.firstIndex(where: { $0.id == id }) else { return }
-        Log.attention.info("request settled: \(String(describing: outcome), privacy: .public)")
+        Log.attention.info("request settled: \(Self.logLabel(outcome), privacy: .public)")
         pending.remove(at: index)
         if let responder = responders.removeValue(forKey: id) {
             switch outcome {
             case .decided(let decision): responder.respond(status: 200, body: decision.hookOutput())
-            case .answeredElsewhere, .timedOut, .clientGone: responder.respond(status: 204)
+            case .answeredElsewhere, .handedBack, .timedOut, .clientGone: responder.respond(status: 204)
             }
         }
         timeouts.removeValue(forKey: id)?.cancel()
         watchers.removeValue(forKey: id)?.cancel()
         escalations.removeValue(forKey: id.uuidString)?.cancel()
         notifications.remove(ids: [id.uuidString, "\(id.uuidString).followup"])
+    }
+
+    /// Outcome kind only. Never the decision's contents (questions, plans, reasons).
+    static func logLabel(_ outcome: Outcome) -> String {
+        switch outcome {
+        case .decided(.allow(let updates)): updates.isEmpty ? "allowed" : "allowed with rule"
+        case .decided(.deny): "denied"
+        case .decided(.answer): "question answered"
+        case .decided(.approvePlan): "plan approved"
+        case .decided(.planFeedback): "plan sent back"
+        case .answeredElsewhere: "answered elsewhere"
+        case .handedBack: "handed back to terminal"
+        case .timedOut: "timed out"
+        case .clientGone: "client gone"
+        }
     }
 
     /// On quit: release every held hook so the terminal dialogs take over immediately.
@@ -283,10 +335,27 @@ final class AttentionCenter {
         let now = Date().addingTimeInterval(-60)
         pending.append(PendingRequest(id: UUID(), sessionID: nil, project: "my-app",
                                       preview: ToolPreviewBuilder.build(toolName: "Bash", input: input),
-                                      options: PermissionOptions.from([suggestion]),
+                                      toolInput: input, options: PermissionOptions.from([suggestion]),
                                       receivedAt: now, deadline: now.addingTimeInterval(300), notified: true))
         record(project: "my-app", text: "Claude wants to use Bash: git push --force-with-lease origin main", isPermission: true)
         record(project: "api-server", text: "Claude is waiting for your input")
+    }
+
+    /// `--render-preview --sample-interactive` only: a sample question and plan.
+    func addInteractivePreviewSamples() {
+        let q: JSONValue = .object(["questions": .array([
+            .object(["question": .string("Which database should the API use?"), "header": .string("Database"), "multiSelect": .bool(false),
+                     "options": .array([.object(["label": .string("PostgreSQL"), "description": .string("Relational, what the rest of the stack uses")]),
+                                        .object(["label": .string("SQLite"), "description": .string("Single file, simplest to run locally")])])]),
+        ])])
+        let plan: JSONValue = .object(["plan": .string("## Add rate limiting\n1. Add a token-bucket middleware in `api/limits.ts`\n2. Limit /login to 5 requests per minute per IP\n3. Return 429 with a Retry-After header\n4. Add tests for the limiter"),
+                                       "planFilePath": .string("/Users/me/.claude/plans/rate-limiting.md")])
+        let now = Date().addingTimeInterval(-30)
+        for (tool, input) in [("AskUserQuestion", q), ("ExitPlanMode", plan)] {
+            pending.append(PendingRequest(id: UUID(), sessionID: nil, project: "api-server",
+                                          preview: ToolPreviewBuilder.build(toolName: tool, input: input), toolInput: input,
+                                          options: [], receivedAt: now, deadline: now.addingTimeInterval(300), notified: true))
+        }
     }
 
     /// For the settings "Send test notification" button.

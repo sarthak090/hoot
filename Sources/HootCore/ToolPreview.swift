@@ -11,10 +11,42 @@ public struct ToolPreview: Sendable, Equatable {
     public var diff: [DiffLine]?
     /// Any other content worth showing (URL, query, raw JSON for unknown tools).
     public var detail: String?
+    /// AskUserQuestion: Claude is asking multiple-choice questions, not asking permission.
+    public var questions: [QuestionPreview]?
+    /// ExitPlanMode: the plan Claude wants approved (Markdown, injected by Claude Code).
+    public var plan: String?
     /// True if hidden or direction-changing characters were made visible anywhere above.
     public var hadHiddenCharacters: Bool
     /// True if anything was cut to keep the preview a sane size.
     public var truncated: Bool
+}
+
+extension ToolPreview {
+    public enum Kind: Sendable, Equatable { case permission, question, plan }
+
+    /// Questions and plans need an answer, not a bare "allow": Claude Code ignores
+    /// "allow" without one and keeps waiting in the terminal.
+    public var kind: Kind {
+        if questions != nil { return .question }
+        if plan != nil { return .plan }
+        return .permission
+    }
+}
+
+public struct QuestionPreview: Sendable, Equatable {
+    public struct Option: Sendable, Equatable {
+        /// Exactly as Claude wrote it: answers must use this text.
+        public var rawLabel: String
+        public var label: String
+        public var detail: String?
+    }
+
+    /// Exactly as Claude wrote it: the answers object is keyed by this text.
+    public var rawQuestion: String
+    public var question: String
+    public var header: String?
+    public var options: [Option]
+    public var multiSelect: Bool
 }
 
 public struct DiffLine: Sendable, Equatable {
@@ -89,12 +121,52 @@ public enum ToolPreviewBuilder {
             preview.detail = safe([input["url"]?.stringValue, input["prompt"]?.stringValue].compactMap { $0 }.joined(separator: "\n\n"))
         case "WebSearch":
             preview.detail = safe(input["query"]?.stringValue)
+        case "AskUserQuestion":
+            let qs = (input["questions"]?.arrayValue ?? []).compactMap { q -> QuestionPreview? in
+                guard let raw = q["question"]?.stringValue else { return nil }
+                let options = (q["options"]?.arrayValue ?? []).compactMap { o -> QuestionPreview.Option? in
+                    guard let label = o["label"]?.stringValue else { return nil }
+                    return .init(rawLabel: label, label: safe(label) ?? label, detail: safe(o["description"]?.stringValue))
+                }
+                return QuestionPreview(rawQuestion: raw, question: safe(raw) ?? raw, header: safe(q["header"]?.stringValue),
+                                       options: options, multiSelect: q["multiSelect"]?.boolValue ?? false)
+            }
+            if qs.isEmpty {
+                preview.detail = safe(Self.readable(input))
+            } else {
+                preview.questions = qs
+            }
+        case "ExitPlanMode":
+            preview.plan = safe(input["plan"]?.stringValue) ?? ""
+            preview.filePath = safe(input["planFilePath"]?.stringValue)
         default:
-            preview.detail = safe(input.prettyPrinted())
+            preview.detail = safe(Self.readable(input))
         }
         preview.hadHiddenCharacters = hidden
         preview.truncated = truncated
         return preview
+    }
+}
+
+extension ToolPreviewBuilder {
+    /// `key: value` lines for tools Hoot doesn't know (MCP tools and others), instead of
+    /// raw JSON. Nested values are shown compactly.
+    static func readable(_ input: JSONValue) -> String {
+        guard case .object(let fields) = input, !fields.isEmpty else { return input.prettyPrinted() }
+        return fields.keys.sorted().map { key -> String in
+            let value: String
+            switch fields[key]! {
+            case .string(let s): value = s
+            case .number(let n): value = n.rounded() == n && abs(n) < 1e15 ? String(Int64(n)) : String(n)
+            case .bool(let b): value = b ? "yes" : "no"
+            case .null: value = "—"
+            case .array, .object:
+                let enc = JSONEncoder()
+                enc.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+                value = (try? enc.encode(fields[key]!)).map { String(decoding: $0, as: UTF8.self) } ?? ""
+            }
+            return "\(key): \(value)"
+        }.joined(separator: "\n")
     }
 }
 

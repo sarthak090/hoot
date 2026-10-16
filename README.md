@@ -11,6 +11,7 @@
 <sub>Screenshots use demo data.</sub>
 
 - **Answer permission requests.** Each request appears as a card with the tool, the project and a readable preview: the full Bash command, or a diff for edits. Choose **Allow Once**, **Always Allow** (from the exact options Claude Code offered), or **Deny…** with a reason that's passed back to Claude. Notifications have Allow/Deny buttons too. The terminal dialog keeps working alongside; whichever answers first wins.
+- **Questions and plans.** When Claude asks you a multiple-choice question or wants a plan approved, it shows up as a proper card: pick an answer (or type your own), approve the plan, or send it back with feedback.
 - **Smart notifications.** Quiet while your terminal or editor is in front; a notification when it isn't, plus one optional reminder.
 - **Usage.** Today's and the last 7 days' tokens, sessions, your most active project, a 7-day chart, and an **API-price cost estimate**.
 - **Plan limits (opt-in).** Your real 5-hour session and weekly usage, from data Claude Code shares with statusline commands. The percentage used can also sit next to the owl in the menu bar.

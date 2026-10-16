@@ -202,6 +202,8 @@ enum ToolSymbol {
         case "Read": "doc.text"
         case "Glob", "Grep", "LS": "magnifyingglass"
         case "WebFetch", "WebSearch": "globe"
+        case "AskUserQuestion": "questionmark.bubble"
+        case "ExitPlanMode": "list.bullet.clipboard"
         default: tool.hasPrefix("mcp__") ? "puzzlepiece.extension" : "wrench.and.screwdriver"
         }
     }

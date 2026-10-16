@@ -55,7 +55,7 @@ func previewTests() {
         ])]))
         Harness.expectEqual(multi.diff?.filter { $0.kind == .gap }.count, 1)
         let mcp = ToolPreviewBuilder.build(toolName: "mcp__github__create_issue", input: .object(["title": .string("Bug")]))
-        Harness.expect(mcp.detail?.contains("\"title\" : \"Bug\"") ?? false, "raw JSON shown")
+        Harness.expectEqual(mcp.detail, "title: Bug")
         let none = ToolPreviewBuilder.build(toolName: "Bash", input: nil)
         Harness.expectEqual(none.command, "")
         let huge = ToolPreviewBuilder.build(toolName: "WebSearch", input: .object(["query": .string(String(repeating: "q", count: 50_000))]))
